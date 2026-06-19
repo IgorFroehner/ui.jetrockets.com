@@ -36,6 +36,8 @@ Components are rendered via the `ui` helper (`app/helpers/ui_helper.rb`). The he
 
 When adding a helper name, **match this resolution order** — pick a class path one of those forms maps to, otherwise the helper will raise.
 
+When authoring a component, follow the existing convention: build the class list with Rails' `class_names` helper, and accept `variant:`, `size:`, `url:`, and boolean modifiers, merging any caller-supplied `class:` (e.g. `Ui::Btn::Component` in `app/components/ui/btn/component.rb`).
+
 The first positional `String` arg is treated as block content:
 
 ```erb
