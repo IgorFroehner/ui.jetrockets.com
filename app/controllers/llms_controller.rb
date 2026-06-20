@@ -8,27 +8,30 @@
 # power the human docs (see ComponentCatalog / ComponentMarkdown), so it
 # can never drift and needs no build step.
 class LlmsController < ApplicationController
+  MARKDOWN = "text/markdown; charset=utf-8".freeze
+
   def index
-    render plain: index_document, content_type: "text/markdown"
+    render plain: index_document, content_type: MARKDOWN
   end
 
   def full
-    render plain: full_document, content_type: "text/markdown"
+    render plain: full_document, content_type: MARKDOWN
   end
 
   def component
     entry = ComponentCatalog.find(params[:name])
     return head(:not_found) unless entry
 
-    render plain: ComponentMarkdown.call(entry), content_type: "text/markdown"
+    render plain: ComponentMarkdown.call(entry), content_type: MARKDOWN
   end
 
   private
 
   def index_document
+    entries = ComponentCatalog.all
     sections = {
-      "Components" => ComponentCatalog.components,
-      "Form Builders" => ComponentCatalog.forms
+      "Components" => entries.select(&:component?),
+      "Form Builders" => entries.reject(&:component?)
     }
 
     out = [
@@ -36,7 +39,7 @@ class LlmsController < ApplicationController
       "",
       "A Rails ViewComponent library. Render components with the `ui` helper, " \
         "e.g. `<%= ui.btn(\"Save\", variant: :default) %>`. " \
-        "Fetch #{full_url} for the complete API in one document."
+        "Fetch #{llms_full_url} for the complete API in one document."
     ]
 
     sections.each do |title, entries|
@@ -44,7 +47,8 @@ class LlmsController < ApplicationController
 
       out << "" << "## #{title}" << ""
       entries.each do |entry|
-        out << "- [#{entry.title}](#{component_url(entry)}): #{entry.description}"
+        url = llms_component_url(name: entry.name, format: :md)
+        out << "- [#{entry.title}](#{url}): #{entry.description}"
       end
     end
 
@@ -61,13 +65,5 @@ class LlmsController < ApplicationController
 
     body = ComponentCatalog.all.map { |entry| ComponentMarkdown.call(entry) }
     header + "\n" + body.join("\n---\n\n")
-  end
-
-  def component_url(entry)
-    "#{request.base_url}/ui/components/#{entry.name}.md"
-  end
-
-  def full_url
-    "#{request.base_url}/llms-full.txt"
   end
 end

@@ -31,11 +31,20 @@ class ComponentCatalog
 
     def load_source(src)
       Dir.glob(Rails.root.join(src[:root], "*/component.yml")).filter_map do |path|
-        data = YAML.safe_load(File.read(path))
+        data = load_yaml(path)
         next if data.blank?
 
         Entry.new(name: File.basename(File.dirname(path)), category: src[:category], data: data)
       end
+    end
+
+    # A syntax error in one component.yml must not take down the whole
+    # corpus endpoint — skip the bad file and keep serving the rest.
+    def load_yaml(path)
+      YAML.safe_load(File.read(path))
+    rescue Psych::SyntaxError => e
+      Rails.logger.warn("[ComponentCatalog] skipping #{path}: #{e.message}")
+      nil
     end
   end
 end
