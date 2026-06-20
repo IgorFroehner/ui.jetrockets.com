@@ -19,6 +19,10 @@ class LlmsController < ApplicationController
   end
 
   def component
+    # The route's format constraint still admits extensionless URLs, so
+    # enforce the documented `.md` contract here.
+    return head(:not_found) unless params[:format] == "md"
+
     entry = ComponentCatalog.find(params[:name])
     return head(:not_found) unless entry
 

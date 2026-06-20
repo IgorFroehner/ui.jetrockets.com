@@ -39,17 +39,10 @@ class ComponentMarkdown
   end
 
   def props_section
-    props = Array(data["props"])
-    return if props.empty?
+    table = props_table(Array(data["props"]))
+    return if table.nil?
 
-    rows = props.map do |prop|
-      type = [prop["type"], format_values(prop["values"])].compact.join(" ")
-      "| `#{prop['name']}` | #{type} | #{code_or_dash(prop['default'])} | #{inline(prop['description'])} |"
-    end
-
-    table = ["| Prop | Type | Default | Description |", "|------|------|---------|-------------|", *rows].join("\n")
-    note  = data["accepts_html_attributes"] ? "\n\nAlso accepts any HTML attributes via `**options` (e.g. `id:`, `data:`, `aria:`, `class:`)." : ""
-
+    note = data["accepts_html_attributes"] ? "\n\nAlso accepts any HTML attributes via `**options` (e.g. `id:`, `data:`, `aria:`, `class:`)." : ""
     "## Props\n\n#{table}#{note}"
   end
 
@@ -57,12 +50,29 @@ class ComponentMarkdown
     slots = Array(data["slots"])
     return if slots.empty?
 
-    rows = slots.map do |slot|
-      "| `#{slot['name']}` | `ui.#{slot['name']}` | #{inline(slot['description'])} |"
+    blocks = slots.map do |slot|
+      parts = ["### `ui.#{slot['name']}`"]
+      parts << inline(slot["description"]) if slot["description"].present?
+      props_table = props_table(Array(slot["props"]))
+      parts << props_table if props_table
+      parts.join("\n\n")
     end
 
-    table = ["| Name | Helper | Description |", "|------|--------|-------------|", *rows].join("\n")
-    "## Subcomponents\n\nUse the subcomponents below, or any HTML.\n\n#{table}"
+    "## Subcomponents\n\nUse the subcomponents below, or any HTML.\n\n#{blocks.join("\n\n")}"
+  end
+
+  # Shared by the top-level Props section and each subcomponent's props,
+  # so pipe-escaping and column layout stay consistent. Returns nil when
+  # there are no props.
+  def props_table(props)
+    return if props.empty?
+
+    rows = props.map do |prop|
+      type = [prop["type"], format_values(prop["values"])].compact.join(" ")
+      "| #{code_cell(prop['name'])} | #{cell(type)} | #{code_cell(prop['default'])} | #{cell(prop['description'])} |"
+    end
+
+    ["| Prop | Type | Default | Description |", "|------|------|---------|-------------|", *rows].join("\n")
   end
 
   def examples_section
@@ -86,8 +96,15 @@ class ComponentMarkdown
     "(#{Array(values).join(', ')})"
   end
 
-  def code_or_dash(value)
-    value.present? ? "`#{value}`" : "—"
+  # A plain table cell: single line, pipes escaped so they don't spawn
+  # extra columns (e.g. a type of "String | false").
+  def cell(text)
+    inline(text).gsub("|", "\\|")
+  end
+
+  # A code-formatted table cell, or an em dash when blank.
+  def code_cell(value)
+    value.present? ? "`#{cell(value)}`" : "—"
   end
 
   def inline(text)
